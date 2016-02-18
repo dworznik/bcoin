@@ -23,12 +23,20 @@
   "dependencies": {
     "async": "^0.8.0",
     "bn.js": "4.6.3",
+    "dexie": "^1.2.0",
     "elliptic": "6.0.2",
     "hash.js": "1.0.3",
-    "inherits": "^2.0.1"
+    "inherits": "^2.0.1",
+    "memory-fs": "^0.3.0",
+    "net-browserify": "^0.2.2"
   },
   "devDependencies": {
+    "babel": "^6.5.2",
+    "babel-core": "^6.5.2",
+    "babel-loader": "^6.2.2",
     "browserify": "^3.44.2",
-    "mocha": "^1.18.2"
+    "json-loader": "^0.5.4",
+    "mocha": "^1.18.2",
+    "webpack": "^1.12.13"
   }
 }
