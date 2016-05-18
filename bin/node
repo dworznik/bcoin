@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-var bcoin = require('../')({ debug: true, debugFile: true });
+var bcoin = require('../').set({ debug: true, debugFile: true });
 var utils = bcoin.utils;
 var assert = utils.assert;
 
@@ -9,12 +9,12 @@ process.on('uncaughtException', function(err) {
   process.exit(1);
 });
 
-var node = bcoin.fullnode({
-  passphrase: 'node',
+var node = new bcoin.fullnode({
   prune: process.argv.indexOf('--prune') !== -1,
   useCheckpoints: process.argv.indexOf('--checkpoints') !== -1,
   listen: process.argv.indexOf('--listen') !== -1,
   selfish: process.argv.indexOf('--selfish') !== -1,
+  broadcast: process.argv.indexOf('--broadcast') !== -1,
   mine: process.argv.indexOf('--mine') !== -1
 });
 
@@ -27,7 +27,7 @@ node.open(function(err) {
     throw err;
 
   if (node.options.mine) {
-    if (bcoin.protocol.network.type !== 'regtest')
+    if (bcoin.network.get().type !== 'regtest')
       node.pool.connect();
     node.miner.start();
     return;

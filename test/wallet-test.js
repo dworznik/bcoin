@@ -1,8 +1,9 @@
 var bn = require('bn.js');
-var bcoin = require('../')({ db: process.env.BCOIN_TEST_DB || 'memory' });
+var bcoin = require('../').set('main');
 var constants = bcoin.protocol.constants;
+var network = bcoin.protocol.network;
 var utils = bcoin.utils;
-var assert = utils.assert;
+var assert = require('assert');
 
 var dummyInput = {
   prevout: {
@@ -19,14 +20,19 @@ var dummyInput = {
     index: 0
   },
   script: new bcoin.script([]),
-  witness: new bcoin.script.witness([]),
+  witness: new bcoin.witness([]),
   sequence: 0xffffffff
 };
 
 describe('Wallet', function() {
-  var wdb = new bcoin.walletdb({ verify: true });
+  var wdb = new bcoin.walletdb({
+    name: 'wallet-test',
+    db: 'memory',
+    verify: true
+  });
 
   it('should open walletdb', function(cb) {
+    constants.tx.COINBASE_MATURITY = 0;
     wdb.open(cb);
   });
 
@@ -52,12 +58,12 @@ describe('Wallet', function() {
       flags |= bcoin.protocol.constants.flags.VERIFY_WITNESS;
 
     wdb.create({ witness: witness }, function(err, w) {
-      assert.noError(err);
+      assert.ifError(err);
 
       if (witness)
-        assert(bcoin.address.parse(w.getAddress()).type === 'witnesspubkeyhash');
+        assert(bcoin.address.parseBase58(w.getAddress()).type === 'witnesspubkeyhash');
       else
-        assert(bcoin.address.parse(w.getAddress()).type === 'pubkeyhash');
+        assert(bcoin.address.parseBase58(w.getAddress()).type === 'pubkeyhash');
 
       // Input transcation
       var src = bcoin.mtx({
@@ -68,7 +74,7 @@ describe('Wallet', function() {
             : w.getAddress()
         }, {
           value: 5460 * 2,
-          address: bcoin.address.compileData(new Buffer([]))
+          address: bcoin.address.fromData(new Buffer([])).toBase58()
         }]
       });
 
@@ -107,7 +113,7 @@ describe('Wallet', function() {
       m: 1,
       n: 2
     });
-    var k2 = bcoin.hd.fromSeed().deriveAccount44(0).hdPublicKey;
+    var k2 = bcoin.hd.fromMnemonic().deriveAccount44(0).hdPublicKey;
     w.addKey(k2);
 
     // Input transcation
@@ -118,7 +124,7 @@ describe('Wallet', function() {
         keys: [ w.getPublicKey(), k2.derive('m/0/0').publicKey ]
       }, {
         value: 5460 * 2,
-        address: bcoin.address.compileData(new Buffer([]))
+        address: bcoin.address.fromData(new Buffer([])).toBase58()
       }]
     });
     src.addInput(dummyInput);
@@ -139,9 +145,9 @@ describe('Wallet', function() {
   var dw, di;
   it('should have TX pool and be serializable', function(cb) {
     wdb.create({}, function(err, w) {
-      assert.noError(err);
+      assert.ifError(err);
       wdb.create({}, function(err, f) {
-        assert.noError(err);
+        assert.ifError(err);
         dw = w;
 
         // Coinbase
@@ -188,30 +194,30 @@ describe('Wallet', function() {
 
         // Fake TX should temporarly change output
         wdb.addTX(fake, function(err) {
-          assert.noError(err);
+          assert.ifError(err);
           wdb.addTX(t4, function(err) {
-            assert.noError(err);
+            assert.ifError(err);
             w.getBalance(function(err, balance) {
-              assert.noError(err);
+              assert.ifError(err);
               assert.equal(balance.total.toString(10), '22500');
               wdb.addTX(t1, function(err) {
                 w.getBalance(function(err, balance) {
-                  assert.noError(err);
+                  assert.ifError(err);
                   assert.equal(balance.total.toString(10), '73000');
                   wdb.addTX(t2, function(err) {
-                    assert.noError(err);
+                    assert.ifError(err);
                     w.getBalance(function(err, balance) {
-                      assert.noError(err);
+                      assert.ifError(err);
                       assert.equal(balance.total.toString(10), '47000');
                       wdb.addTX(t3, function(err) {
-                        assert.noError(err);
+                        assert.ifError(err);
                         w.getBalance(function(err, balance) {
-                          assert.noError(err);
+                          assert.ifError(err);
                           assert.equal(balance.total.toString(10), '22000');
                           wdb.addTX(f1, function(err) {
-                            assert.noError(err);
+                            assert.ifError(err);
                             w.getBalance(function(err, balance) {
-                              assert.noError(err);
+                              assert.ifError(err);
                               assert.equal(balance.total.toString(10), '11000');
                               w.getHistory(function(err, txs) {
                                 assert(txs.some(function(tx) {
@@ -244,9 +250,9 @@ describe('Wallet', function() {
     var t1 = bcoin.mtx().addOutput(dw, 5000);
     t1.addInput(di);
     wdb.addTX(t1, function(err) {
-      assert.noError(err);
+      assert.ifError(err);
       dw.getBalance(function(err, balance) {
-        assert.noError(err);
+        assert.ifError(err);
         assert.equal(balance.total.toString(10), '11000');
         cb();
       });
@@ -255,9 +261,9 @@ describe('Wallet', function() {
 
   it('should fill tx with inputs', function(cb) {
     wdb.create({}, function(err, w1) {
-      assert.noError(err);
+      assert.ifError(err);
       wdb.create({}, function(err, w2) {
-        assert.noError(err);
+        assert.ifError(err);
 
         // Coinbase
         var t1 = bcoin.mtx()
@@ -270,12 +276,12 @@ describe('Wallet', function() {
 
         // Fake TX should temporarly change output
         wdb.addTX(t1, function(err) {
-          assert.noError(err);
+          assert.ifError(err);
 
           // Create new transaction
           var t2 = bcoin.mtx().addOutput(w2, 5460);
           w1.fill(t2, function(err) {
-            assert.noError(err);
+            assert.ifError(err);
             w1.sign(t2);
             assert(t2.verify());
 
@@ -300,11 +306,11 @@ describe('Wallet', function() {
 
   it('should sign multiple inputs using different keys', function(cb) {
     wdb.create({}, function(err, w1) {
-      assert.noError(err);
+      assert.ifError(err);
       wdb.create({}, function(err, w2) {
-        assert.noError(err);
+        assert.ifError(err);
         wdb.create({}, function(err, to) {
-          assert.noError(err);
+          assert.ifError(err);
 
           // Coinbase
           var t1 = bcoin.mtx()
@@ -327,9 +333,9 @@ describe('Wallet', function() {
           // Fake TX should temporarly change output
 
           wdb.addTX(t1, function(err) {
-            assert.noError(err);
+            assert.ifError(err);
             wdb.addTX(t2, function(err) {
-              assert.noError(err);
+              assert.ifError(err);
 
               // Create our tx with an output
               var tx = bcoin.mtx();
@@ -339,9 +345,9 @@ describe('Wallet', function() {
               var total = cost.add(new bn(constants.tx.MIN_FEE));
 
               w1.getCoins(function(err, coins1) {
-                assert.noError(err);
+                assert.ifError(err);
                 w2.getCoins(function(err, coins2) {
-                  assert.noError(err);
+                  assert.ifError(err);
 
                   // Add dummy output (for `left`) to calculate maximum TX size
                   tx.addOutput(w1, new bn(0));
@@ -405,13 +411,13 @@ describe('Wallet', function() {
     };
 
     wdb.create(utils.merge({}, options), function(err, w1) {
-      assert.noError(err);
+      assert.ifError(err);
       wdb.create(utils.merge({}, options), function(err, w2) {
-        assert.noError(err);
+        assert.ifError(err);
         wdb.create(utils.merge({}, options), function(err, w3) {
-          assert.noError(err);
+          assert.ifError(err);
           wdb.create({}, function(err, receive) {
-            assert.noError(err);
+            assert.ifError(err);
 
             w1.addKey(w2);
             w1.addKey(w3);
@@ -426,9 +432,9 @@ describe('Wallet', function() {
             var addr = w1.getAddress();
 
             if (witness)
-              assert(bcoin.address.parse(addr).type === 'witnessscripthash');
+              assert(bcoin.address.parseBase58(addr).type === 'witnessscripthash');
             else
-              assert(bcoin.address.parse(addr).type === 'scripthash');
+              assert(bcoin.address.parseBase58(addr).type === 'scripthash');
 
             assert.equal(w1.getAddress(), addr);
             assert.equal(w2.getAddress(), addr);
@@ -458,11 +464,11 @@ describe('Wallet', function() {
             assert.equal(w1.receiveDepth, 1);
 
             wdb.addTX(utx, function(err) {
-              assert.noError(err);
+              assert.ifError(err);
               wdb.addTX(utx, function(err) {
-                assert.noError(err);
+                assert.ifError(err);
                 wdb.addTX(utx, function(err) {
-                  assert.noError(err);
+                  assert.ifError(err);
 
                   assert.equal(w1.receiveDepth, 2);
                   assert.equal(w1.changeDepth, 1);
@@ -478,7 +484,7 @@ describe('Wallet', function() {
                   send.addOutput({ address: receive.getAddress(), value: 5460 });
                   assert(!send.verify(null, true, flags));
                   w1.fill(send, { m: w1.m, n: w1.n }, function(err) {
-                    assert.noError(err);
+                    assert.ifError(err);
 
                     w1.sign(send);
 
@@ -499,11 +505,11 @@ describe('Wallet', function() {
                     send.height = 1;
 
                     wdb.addTX(send, function(err) {
-                      assert.noError(err);
+                      assert.ifError(err);
                       wdb.addTX(send, function(err) {
-                        assert.noError(err);
+                        assert.ifError(err);
                         wdb.addTX(send, function(err) {
-                          assert.noError(err);
+                          assert.ifError(err);
 
                           assert.equal(w1.receiveDepth, 2);
                           assert.equal(w1.changeDepth, 2);
@@ -555,11 +561,8 @@ describe('Wallet', function() {
     multisig(true, true, cb);
   });
 
-  it('should have gratuitous dump', function(cb) {
-    bcoin.walletdb().dump(function(err, records) {
-      assert.noError(err);
-      // console.log(records);
-      setTimeout(cb, 200);
-    });
+  it('should cleanup', function(cb) {
+    constants.tx.COINBASE_MATURITY = 100;
+    cb();
   });
 });

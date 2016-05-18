@@ -1,6 +1,6 @@
-var assert = require('assert');
 var bn = require('bn.js');
-var bcoin = require('../')();
+var bcoin = require('../').set('main');
+var assert = require('assert');
 var utils = bcoin.utils;
 var constants = bcoin.protocol.constants;
 var opcodes = bcoin.protocol.constants.opcodes;
@@ -170,7 +170,7 @@ describe('TX', function() {
         tx: tx,
         flags: flags,
         comments: tx.hasCoins()
-          ? utils._inspect(tx.inputs[0].coin.script, false).slice(0, -1)
+          ? utils.inspectify(tx.inputs[0].coin.script, false)
           : 'coinbase',
         data: data
       };
@@ -263,7 +263,7 @@ describe('TX', function() {
       if (hexType.length % 2 !== 0)
         hexType = '0' + hexType;
       it('should get signature hash of ' + data[4] + ' (' + hexType + ')' + suffix, function () {
-        var subscript = script.getSubscript();
+        var subscript = script.getSubscript(0).removeSeparators();
         var hash = tx.signatureHash(index, subscript, type, 0).toString('hex');
         assert.equal(hash, expected);
       });

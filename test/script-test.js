@@ -1,7 +1,7 @@
+var bcoin = require('../').set('main');
 var assert = require('assert');
-var bcoin = require('../')();
 var Script = bcoin.script;
-var Stack = bcoin.script.stack;
+var Stack = bcoin.stack;
 var utils = bcoin.utils;
 var constants = bcoin.protocol.constants;
 var opcodes = bcoin.protocol.constants.opcodes;
@@ -142,13 +142,13 @@ describe('Script', function() {
 
   it('should handle bad size pushes correctly.', function () {
     var err;
-    var stack = new bcoin.script.stack();
+    var stack = new bcoin.stack();
     var s = bcoin.script.fromString(
       'OP_1 OP_DUP OP_PUSHDATA1'
     );
-    assert(utils.equals(s.raw, new Buffer('51764c', 'hex')));
+    assert(utils.equal(s.raw, new Buffer('51764c', 'hex')));
     delete s.raw;
-    assert(utils.equals(s.encode(), new Buffer('51764c', 'hex')));
+    assert(utils.equal(s.encode(), new Buffer('51764c', 'hex')));
     try {
       s.execute(stack);
     } catch (e) {
@@ -159,9 +159,9 @@ describe('Script', function() {
     var s = bcoin.script.fromString(
       'OP_1 OP_DUP OP_PUSHDATA2 0x01'
     );
-    assert(utils.equals(s.raw, new Buffer('51764d01', 'hex')));
+    assert(utils.equal(s.raw, new Buffer('51764d01', 'hex')));
     delete s.raw;
-    assert(utils.equals(s.encode(), new Buffer('51764d01', 'hex')));
+    assert(utils.equal(s.encode(), new Buffer('51764d01', 'hex')));
     err = null;
     try {
       s.execute(stack);
@@ -173,9 +173,9 @@ describe('Script', function() {
     var s = bcoin.script.fromString(
       'OP_1 OP_DUP OP_PUSHDATA4 0x0001'
     );
-    assert(utils.equals(s.raw, new Buffer('51764e0001', 'hex')));
+    assert(utils.equal(s.raw, new Buffer('51764e0001', 'hex')));
     delete s.raw;
-    assert(utils.equals(s.encode(), new Buffer('51764e0001', 'hex')));
+    assert(utils.equal(s.encode(), new Buffer('51764e0001', 'hex')));
     err = null;
     try {
       s.execute(stack);
@@ -187,9 +187,9 @@ describe('Script', function() {
     var s = bcoin.script.fromString(
       'OP_1 OP_DUP OP_PUSHDATA1 0x02 0x01'
     );
-    assert(utils.equals(s.raw, new Buffer('51764c0201', 'hex')));
+    assert(utils.equal(s.raw, new Buffer('51764c0201', 'hex')));
     delete s.raw;
-    assert(utils.equals(s.encode(), new Buffer('51764c0201', 'hex')));
+    assert(utils.equal(s.encode(), new Buffer('51764c0201', 'hex')));
     err = null;
     try {
       s.execute(stack);
@@ -201,9 +201,9 @@ describe('Script', function() {
     var s = bcoin.script.fromString(
       'OP_1 OP_DUP OP_PUSHDATA2 0x0200 0x01'
     );
-    assert(utils.equals(s.raw, new Buffer('51764d020001', 'hex')));
+    assert(utils.equal(s.raw, new Buffer('51764d020001', 'hex')));
     delete s.raw;
-    assert(utils.equals(s.encode(), new Buffer('51764d020001', 'hex')));
+    assert(utils.equal(s.encode(), new Buffer('51764d020001', 'hex')));
     err = null;
     try {
       s.execute(stack);
@@ -222,7 +222,7 @@ describe('Script', function() {
       new Buffer([0xfe, 0xff, 0xff, 0xff, 0x80]),
       'OP_EQUAL'
     ]);
-    var stack = new bcoin.script.stack();
+    var stack = new bcoin.stack();
     assert(s.execute(stack));
     assert(success(s2.execute(stack), stack));
   });
@@ -235,7 +235,7 @@ describe('Script', function() {
       'OP_NUMNOTEQUAL',
       'OP_NOT'
     ]);
-    var stack = new bcoin.script.stack();
+    var stack = new bcoin.stack();
     assert(s.execute(stack));
     assert(success(s2.execute(stack), stack));
   });
@@ -253,7 +253,7 @@ describe('Script', function() {
       'OP_2',
       'OP_EQUAL'
     ]);
-    var stack = new bcoin.script.stack();
+    var stack = new bcoin.stack();
     assert(s.execute(stack));
     assert(success(s2.execute(stack), stack));
   });
@@ -297,7 +297,7 @@ describe('Script', function() {
             },
             coin: null,
             script: [bcoin.script.array(0), bcoin.script.array(0)],
-            witness: new bcoin.script.witness(),
+            witness: new bcoin.witness(),
             sequence: 0xffffffff
           }],
           outputs: [{
@@ -340,7 +340,7 @@ describe('Script', function() {
           assert.equal(err.code, expected);
           return;
         }
-        utils.assert.noError(err);
+        utils.assert.ifError(err);
         assert(res);
       });
     });

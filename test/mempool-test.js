@@ -1,13 +1,24 @@
 var bn = require('bn.js');
-var bcoin = require('../')({ db: 'memory' });
+var bcoin = require('../').set('main');
 var constants = bcoin.protocol.constants;
 var utils = bcoin.utils;
-var assert = utils.assert;
+var assert = require('assert');
 var opcodes = constants.opcodes;
 
 describe('Mempool', function() {
-  var chain = new bcoin.chain();
-  var mempool = new bcoin.mempool({ chain: chain });
+  this.timeout(5000);
+
+  var chain = new bcoin.chain({
+    name: 'mp-chain',
+    db: 'memory'
+  });
+
+  var mempool = new bcoin.mempool({
+    chain: chain,
+    name: 'mempool-test',
+    db: 'memory'
+  });
+
   mempool.on('error', function() {});
 
   it('should open mempool', function(cb) {
@@ -84,31 +95,31 @@ describe('Mempool', function() {
     fake.hint = 'fake';
 
     mempool.addTX(fake, function(err) {
-      assert.noError(err);
+      assert.ifError(err);
       mempool.addTX(t4, function(err) {
-        assert.noError(err);
+        assert.ifError(err);
         mempool.getBalance(function(err, balance) {
-          assert.noError(err);
+          assert.ifError(err);
           assert.equal(balance.total.toString(10), '0');
           mempool.addTX(t1, function(err) {
-            assert.noError(err);
+            assert.ifError(err);
             mempool.getBalance(function(err, balance) {
-              assert.noError(err);
+              assert.ifError(err);
               assert.equal(balance.total.toString(10), '60000');
               mempool.addTX(t2, function(err) {
-                assert.noError(err);
+                assert.ifError(err);
                 mempool.getBalance(function(err, balance) {
-                  assert.noError(err);
+                  assert.ifError(err);
                   assert.equal(balance.total.toString(10), '50000');
                   mempool.addTX(t3, function(err) {
-                    assert.noError(err);
+                    assert.ifError(err);
                     mempool.getBalance(function(err, balance) {
-                      assert.noError(err);
+                      assert.ifError(err);
                       assert.equal(balance.total.toString(10), '22000');
                       mempool.addTX(f1, function(err) {
-                        assert.noError(err);
+                        assert.ifError(err);
                         mempool.getBalance(function(err, balance) {
-                          assert.noError(err);
+                          assert.ifError(err);
                           assert.equal(balance.total.toString(10), '20000');
                           mempool.getHistory(function(err, txs) {
                             assert(txs.some(function(tx) {

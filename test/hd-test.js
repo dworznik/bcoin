@@ -1,6 +1,5 @@
-// var assert = require('assert');
 var bn = require('bn.js');
-var bcoin = require('../')();
+var bcoin = require('../').set('main');
 var utils = bcoin.utils;
 var assert = require('assert');
 
@@ -94,7 +93,7 @@ describe('HD', function() {
   });
 
   it('should create master private key', function() {
-    master = bcoin.hd.priv.fromSeed(new Buffer(seed, 'hex'));
+    master = bcoin.hd.PrivateKey.fromSeed(new Buffer(seed, 'hex'));
     assert.equal(master.xprivkey, master_priv);
     assert.equal(master.xpubkey, master_pub);
   });
@@ -135,24 +134,16 @@ describe('HD', function() {
   });
 
   it('should deserialize master private key', function() {
-    bcoin.hd.priv.parse(master.xprivkey);
+    bcoin.hd.PrivateKey.parseBase58(master.xprivkey);
   });
 
   it('should deserialize master public key', function() {
-    bcoin.hd.pub.parse(master.hdPublicKey.xpubkey);
+    bcoin.hd.PublicKey.parseBase58(master.hdPublicKey.xpubkey);
   });
 
   it('should deserialize and reserialize', function() {
-    var key = bcoin.hd.fromSeed();
+    var key = bcoin.hd.fromMnemonic();
     assert.equal(bcoin.hd.fromJSON(key.toJSON()).xprivkey, key.xprivkey);
-  });
-
-  it('should create an hd seed', function() {
-    var seed = new bcoin.hd.seed({
-      // I have the same combination on my luggage:
-      entropy: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
-      passphrase: 'foo'
-    });
   });
 
   function ub58(data) {
@@ -171,7 +162,7 @@ describe('HD', function() {
     delete vector.seed;
     delete vector.m;
     it('should create from a seed', function() {
-      master = bcoin.hd.priv.fromSeed(new Buffer(seed, 'hex'));
+      master = bcoin.hd.PrivateKey.fromSeed(new Buffer(seed, 'hex'));
       equal(master.xprivkey, m.prv);
       equal(master.xpubkey, m.pub);
     });
