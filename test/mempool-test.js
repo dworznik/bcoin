@@ -39,7 +39,7 @@ describe('Mempool', function() {
       coin: {
         version: 1,
         height: 0,
-        value: new bn(70000),
+        value: 70000,
         script: prev,
         coinbase: false,
         hash: constants.ONE_HASH.toString('hex'),
@@ -100,27 +100,27 @@ describe('Mempool', function() {
         assert.ifError(err);
         mempool.getBalance(function(err, balance) {
           assert.ifError(err);
-          assert.equal(balance.total.toString(10), '0');
+          assert.equal(balance.total, 0);
           mempool.addTX(t1, function(err) {
             assert.ifError(err);
             mempool.getBalance(function(err, balance) {
               assert.ifError(err);
-              assert.equal(balance.total.toString(10), '60000');
+              assert.equal(balance.total, 60000);
               mempool.addTX(t2, function(err) {
                 assert.ifError(err);
                 mempool.getBalance(function(err, balance) {
                   assert.ifError(err);
-                  assert.equal(balance.total.toString(10), '50000');
+                  assert.equal(balance.total, 50000);
                   mempool.addTX(t3, function(err) {
                     assert.ifError(err);
                     mempool.getBalance(function(err, balance) {
                       assert.ifError(err);
-                      assert.equal(balance.total.toString(10), '22000');
+                      assert.equal(balance.total, 22000);
                       mempool.addTX(f1, function(err) {
                         assert.ifError(err);
                         mempool.getBalance(function(err, balance) {
                           assert.ifError(err);
-                          assert.equal(balance.total.toString(10), '20000');
+                          assert.equal(balance.total, 20000);
                           mempool.getHistory(function(err, txs) {
                             assert(txs.some(function(tx) {
                               return tx.hash('hex') === f1.hash('hex');
@@ -138,6 +138,76 @@ describe('Mempool', function() {
           });
         });
       });
+    });
+  });
+
+  it('should handle locktime', function(cb) {
+    var w = new bcoin.wallet();
+
+    // Coinbase
+    var t1 = bcoin.mtx().addOutput(w, 50000).addOutput(w, 10000); // 10000 instead of 1000
+    var prev = new bcoin.script([w.publicKey, opcodes.OP_CHECKSIG]);
+    var prevHash = bcoin.ec.random(32).toString('hex');
+    var dummyInput = {
+      prevout: {
+        hash: prevHash,
+        index: 0
+      },
+      coin: {
+        version: 1,
+        height: 0,
+        value: 70000,
+        script: prev,
+        coinbase: false,
+        hash: prevHash,
+        index: 0
+      },
+      script: new bcoin.script([]),
+      sequence: 0xffffffff
+    };
+    t1.addInput(dummyInput);
+    t1.setLocktime(200);
+    chain.tip.height = 200;
+    t1.inputs[0].script = new bcoin.script([t1.createSignature(0, prev, w.privateKey, 'all', 0)]),
+    mempool.addTX(t1, function(err) {
+      chain.tip.height = 0;
+      assert.ifError(err);
+      cb();
+    });
+  });
+
+  it('should handle invalid locktime', function(cb) {
+    var w = new bcoin.wallet();
+
+    // Coinbase
+    var t1 = bcoin.mtx().addOutput(w, 50000).addOutput(w, 10000); // 10000 instead of 1000
+    var prev = new bcoin.script([w.publicKey, opcodes.OP_CHECKSIG]);
+    var prevHash = bcoin.ec.random(32).toString('hex');
+    var dummyInput = {
+      prevout: {
+        hash: prevHash,
+        index: 0
+      },
+      coin: {
+        version: 1,
+        height: 0,
+        value: 70000,
+        script: prev,
+        coinbase: false,
+        hash: prevHash,
+        index: 0
+      },
+      script: new bcoin.script([]),
+      sequence: 0xffffffff
+    };
+    t1.addInput(dummyInput);
+    t1.setLocktime(200);
+    chain.tip.height = 200 - 1;
+    t1.inputs[0].script = new bcoin.script([t1.createSignature(0, prev, w.privateKey, 'all', 0)]),
+    mempool.addTX(t1, function(err) {
+      chain.tip.height = 0;
+      assert(err);
+      cb();
     });
   });
 

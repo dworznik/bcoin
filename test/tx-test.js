@@ -12,6 +12,7 @@ var tx1 = parseTX('data/tx1.hex');
 var tx2 = parseTX('data/tx2.hex');
 var tx3 = parseTX('data/tx3.hex');
 var tx4 = parseExtended('data/tx4.hex');
+var wtx = parseTX('data/wtx.hex');
 
 function parseTX(file) {
   file = fs.readFileSync(__dirname + '/' + file, 'utf8').trim().split(/\n+/);
@@ -35,6 +36,7 @@ function clearCache(tx, nocache) {
     if (!nocache)
       return;
     delete tx.raw;
+    delete tx.redeem;
     return;
   }
 
@@ -45,16 +47,25 @@ function clearCache(tx, nocache) {
 
   delete tx._raw;
   delete tx._hash;
+  delete tx._inputValue;
+  delete tx._outputValue;
+
+  tx._size = 0;
+  tx._witnessSize = 0;
 
   for (i = 0; i < tx.inputs.length; i++) {
     input = tx.inputs[i];
+    delete input._address;
     delete input.script.raw;
+    delete input.script.redeem;
+    delete input.witness.redeem;
     if (input.coin)
       delete input.coin.script.raw;
   }
 
   for (i = 0; i < tx.outputs.length; i++) {
     output = tx.outputs[i];
+    delete output._address;
     delete output.script.raw;
   }
 }
@@ -161,7 +172,7 @@ describe('TX', function() {
           hash: utils.revHex(hash),
           index: index,
           script: script,
-          value: value != null ? new bn(value) : new bn(0)
+          value: value != null ? parseInt(value, 10) : 0
         });
         tx.fillCoins(coin);
       });
@@ -203,19 +214,19 @@ describe('TX', function() {
 
         if (valid) {
           if (comments.indexOf('Coinbase') === 0) {
-            it('should handle valid coinbase' + suffix + ': ' + comments, function () {
+            it('should handle valid coinbase' + suffix + ': ' + comments, function() {
               clearCache(tx, nocache);
               assert.ok(tx.isSane());
             });
             return;
           }
-          it('should handle valid tx test' + suffix + ': ' + comments, function () {
+          it('should handle valid tx test' + suffix + ': ' + comments, function() {
             clearCache(tx, nocache);
             assert.ok(tx.verify(null, true, flags));
           });
         } else {
           if (comments === 'Duplicate inputs') {
-            it('should handle duplicate input test' + suffix + ': ' + comments, function () {
+            it('should handle duplicate input test' + suffix + ': ' + comments, function() {
               clearCache(tx, nocache);
               assert.ok(tx.verify(null, true, flags));
               assert.ok(!tx.isSane());
@@ -223,7 +234,7 @@ describe('TX', function() {
             return;
           }
           if (comments === 'Negative output') {
-            it('should handle invalid tx (negative)' + suffix + ': ' + comments, function () {
+            it('should handle invalid tx (negative)' + suffix + ': ' + comments, function() {
               clearCache(tx, nocache);
               assert.ok(tx.verify(null, true, flags));
               assert.ok(!tx.isSane());
@@ -231,13 +242,13 @@ describe('TX', function() {
             return;
           }
           if (comments.indexOf('Coinbase') === 0) {
-            it('should handle invalid coinbase' + suffix + ': ' + comments, function () {
+            it('should handle invalid coinbase' + suffix + ': ' + comments, function() {
               clearCache(tx, nocache);
               assert.ok(!tx.isSane());
             });
             return;
           }
-          it('should handle invalid tx test' + suffix + ': ' + comments, function () {
+          it('should handle invalid tx test' + suffix + ': ' + comments, function() {
             clearCache(tx, nocache);
             assert.ok(!tx.verify(null, true, flags));
           });
@@ -262,11 +273,370 @@ describe('TX', function() {
       hexType = hexType.toString(16);
       if (hexType.length % 2 !== 0)
         hexType = '0' + hexType;
-      it('should get signature hash of ' + data[4] + ' (' + hexType + ')' + suffix, function () {
+      it('should get signature hash of ' + data[4] + ' (' + hexType + ')' + suffix, function() {
         var subscript = script.getSubscript(0).removeSeparators();
         var hash = tx.signatureHash(index, subscript, type, 0).toString('hex');
         assert.equal(hash, expected);
       });
     });
+  });
+
+  function createInput(value) {
+    var hash = bcoin.ec.random(32).toString('hex');
+    return {
+      prevout: {
+        hash: hash,
+        index: 0
+      },
+      coin: {
+        version: 1,
+        height: 0,
+        value: value,
+        script: [],
+        coinbase: false,
+        hash: hash,
+        index: 0
+      },
+      script: [],
+      witness: [],
+      sequence: 0xffffffff
+    };
+  }
+
+  it('should fail on >51 bit coin values', function() {
+    var tx = bcoin.tx({
+      version: 1,
+      flag: 1,
+      inputs: [createInput(constants.MAX_MONEY + 1)],
+      outputs: [{
+        script: [],
+        value: constants.MAX_MONEY
+      }],
+      locktime: 0
+    });
+    assert.ok(tx.isSane());
+    assert.ok(!tx.checkInputs(0));
+  });
+
+  it('should handle 51 bit coin values', function() {
+    var tx = bcoin.tx({
+      version: 1,
+      flag: 1,
+      inputs: [createInput(constants.MAX_MONEY)],
+      outputs: [{
+        script: [],
+        value: constants.MAX_MONEY
+      }],
+      locktime: 0
+    });
+    assert.ok(tx.isSane());
+    assert.ok(tx.checkInputs(0));
+  });
+
+  it('should fail on >51 bit output values', function() {
+    var tx = bcoin.tx({
+      version: 1,
+      flag: 1,
+      inputs: [createInput(constants.MAX_MONEY)],
+      outputs: [{
+        script: [],
+        value: constants.MAX_MONEY + 1
+      }],
+      locktime: 0
+    });
+    assert.ok(!tx.isSane());
+    assert.ok(!tx.checkInputs(0));
+  });
+
+  it('should handle 51 bit output values', function() {
+    var tx = bcoin.tx({
+      version: 1,
+      flag: 1,
+      inputs: [createInput(constants.MAX_MONEY)],
+      outputs: [{
+        script: [],
+        value: constants.MAX_MONEY
+      }],
+      locktime: 0
+    });
+    assert.ok(tx.isSane());
+    assert.ok(tx.checkInputs(0));
+  });
+
+  it('should fail on >51 bit fees', function() {
+    var tx = bcoin.tx({
+      version: 1,
+      flag: 1,
+      inputs: [createInput(constants.MAX_MONEY + 1)],
+      outputs: [{
+        script: [],
+        value: 0
+      }],
+      locktime: 0
+    });
+    assert.ok(tx.isSane());
+    assert.ok(!tx.checkInputs(0));
+  });
+
+  it('should fail on >51 bit values from multiple', function() {
+    var tx = bcoin.tx({
+      version: 1,
+      flag: 1,
+      inputs: [
+        createInput(Math.floor(constants.MAX_MONEY / 2)),
+        createInput(Math.floor(constants.MAX_MONEY / 2)),
+        createInput(Math.floor(constants.MAX_MONEY / 2))
+      ],
+      outputs: [{
+        script: [],
+        value: constants.MAX_MONEY
+      }],
+      locktime: 0
+    });
+    assert.ok(tx.isSane());
+    assert.ok(!tx.checkInputs(0));
+  });
+
+  it('should fail on >51 bit output values from multiple', function() {
+    var tx = bcoin.tx({
+      version: 1,
+      flag: 1,
+      inputs: [createInput(constants.MAX_MONEY)],
+      outputs: [
+        {
+          script: [],
+          value: Math.floor(constants.MAX_MONEY / 2)
+        },
+        {
+          script: [],
+          value: Math.floor(constants.MAX_MONEY / 2)
+        },
+        {
+          script: [],
+          value: Math.floor(constants.MAX_MONEY / 2)
+        }
+      ],
+      locktime: 0
+    });
+    assert.ok(!tx.isSane());
+    assert.ok(!tx.checkInputs(0));
+  });
+
+  it('should fail on >51 bit fees from multiple', function() {
+    var tx = bcoin.tx({
+      version: 1,
+      flag: 1,
+      inputs: [
+        createInput(Math.floor(constants.MAX_MONEY / 2)),
+        createInput(Math.floor(constants.MAX_MONEY / 2)),
+        createInput(Math.floor(constants.MAX_MONEY / 2))
+      ],
+      outputs: [{
+        script: [],
+        value: 0
+      }],
+      locktime: 0
+    });
+    assert.ok(tx.isSane());
+    assert.ok(!tx.checkInputs(0));
+  });
+
+  it('should fail on >51 bit fees from multiple txs', function() {
+    var data = utils.merge({}, bcoin.network.get().genesis, { height: 0 });
+    var block = new bcoin.block(data);
+    for (var i = 0; i < 3; i++) {
+      var tx = bcoin.tx({
+        version: 1,
+        flag: 1,
+        inputs: [
+          createInput(Math.floor(constants.MAX_MONEY / 2))
+        ],
+        outputs: [{
+          script: [],
+          value: 0
+        }],
+        locktime: 0
+      });
+      block.txs.push(tx);
+    }
+    assert.equal(block.getReward(), -1);
+  });
+
+  it('should fail to parse >53 bit values', function() {
+    var tx = bcoin.tx({
+      version: 1,
+      flag: 1,
+      inputs: [
+        createInput(Math.floor(constants.MAX_MONEY / 2))
+      ],
+      outputs: [{
+        script: [],
+        value: 0
+      }],
+      locktime: 0
+    });
+    tx.outputs[0].value = new bn('00ffffffffffffff', 'hex');
+    assert(tx.outputs[0].value.bitLength() === 56);
+    var raw = tx.toRaw()
+    assert.throws(function() {
+      tx.fromRaw(raw);
+    });
+    delete tx._raw;
+    tx.outputs[0].value = new bn('00ffffffffffffff', 'hex').ineg();
+    assert(tx.outputs[0].value.bitLength() === 56);
+    var raw = tx.toRaw()
+    assert.throws(function() {
+      tx.fromRaw(raw);
+    });
+  });
+
+  it('should fail on 53 bit coin values', function() {
+    var tx = bcoin.tx({
+      version: 1,
+      flag: 1,
+      inputs: [createInput(utils.MAX_SAFE_INTEGER)],
+      outputs: [{
+        script: [],
+        value: constants.MAX_MONEY
+      }],
+      locktime: 0
+    });
+    assert.ok(tx.isSane());
+    assert.ok(!tx.checkInputs(0));
+  });
+
+  it('should fail on 53 bit output values', function() {
+    var tx = bcoin.tx({
+      version: 1,
+      flag: 1,
+      inputs: [createInput(constants.MAX_MONEY)],
+      outputs: [{
+        script: [],
+        value: utils.MAX_SAFE_INTEGER
+      }],
+      locktime: 0
+    });
+    assert.ok(!tx.isSane());
+    assert.ok(!tx.checkInputs(0));
+  });
+
+  it('should fail on 53 bit fees', function() {
+    var tx = bcoin.tx({
+      version: 1,
+      flag: 1,
+      inputs: [createInput(utils.MAX_SAFE_INTEGER)],
+      outputs: [{
+        script: [],
+        value: 0
+      }],
+      locktime: 0
+    });
+    assert.ok(tx.isSane());
+    assert.ok(!tx.checkInputs(0));
+  });
+
+  [utils.MAX_SAFE_ADDITION, utils.MAX_SAFE_INTEGER].forEach(function(MAX) {
+    it('should fail on >53 bit values from multiple', function() {
+      var tx = bcoin.tx({
+        version: 1,
+        flag: 1,
+        inputs: [
+          createInput(MAX),
+          createInput(MAX),
+          createInput(MAX)
+        ],
+        outputs: [{
+          script: [],
+          value: constants.MAX_MONEY
+        }],
+        locktime: 0
+      });
+      assert.ok(tx.isSane());
+      assert.ok(!tx.checkInputs(0));
+    });
+
+    it('should fail on >53 bit output values from multiple', function() {
+      var tx = bcoin.tx({
+        version: 1,
+        flag: 1,
+        inputs: [createInput(constants.MAX_MONEY)],
+        outputs: [
+          {
+            script: [],
+            value: MAX
+          },
+          {
+            script: [],
+            value: MAX
+          },
+          {
+            script: [],
+            value: MAX
+          }
+        ],
+        locktime: 0
+      });
+      assert.ok(!tx.isSane());
+      assert.ok(!tx.checkInputs(0));
+    });
+
+    it('should fail on >53 bit fees from multiple', function() {
+      var tx = bcoin.tx({
+        version: 1,
+        flag: 1,
+        inputs: [
+          createInput(MAX),
+          createInput(MAX),
+          createInput(MAX)
+        ],
+        outputs: [{
+          script: [],
+          value: 0
+        }],
+        locktime: 0
+      });
+      assert.ok(tx.isSane());
+      assert.ok(!tx.checkInputs(0));
+    });
+
+    it('should fail on >53 bit fees from multiple txs', function() {
+      var data = utils.merge({}, bcoin.network.get().genesis, { height: 0 });
+      var block = new bcoin.block(data);
+      for (var i = 0; i < 3; i++) {
+        var tx = bcoin.tx({
+          version: 1,
+          flag: 1,
+          inputs: [
+            createInput(MAX)
+          ],
+          outputs: [{
+            script: [],
+            value: 0
+          }],
+          locktime: 0
+        });
+        block.txs.push(tx);
+      }
+      assert.equal(block.getReward(), -1);
+    });
+  });
+
+  it('should parse witness tx properly', function() {
+    assert.equal(wtx.inputs.length, 5);
+    assert.equal(wtx.outputs.length, 1980);
+    assert(wtx.hasWitness());
+    assert.notEqual(wtx.hash('hex'), wtx.witnessHash('hex'));
+    assert.equal(wtx.witnessHash('hex'),
+      '088c919cd8408005f255c411f786928385688a9e8fdb2db4c9bc3578ce8c94cf');
+    assert.equal(wtx.getSize(), 62138);
+    assert.equal(wtx.getVirtualSize(), 61813);
+    assert.equal(wtx.getCost(), 247250);
+    var raw1 = wtx.render();
+    clearCache(wtx, true);
+    var raw2 = wtx.render();
+    assert.deepEqual(raw1, raw2);
+    var wtx2 = bcoin.tx.fromRaw(raw2);
+    assert.equal(wtx.hash('hex'), wtx2.hash('hex'));
+    assert.equal(wtx.witnessHash('hex'), wtx2.witnessHash('hex'));
   });
 });

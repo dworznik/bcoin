@@ -40,6 +40,7 @@ describe('Chain', function() {
           value: utils.satoshi('25.0')
         });
         redeemer.addInput(tx, 0);
+        redeemer.setLocktime(chain.height);
         wallet.sign(redeemer);
         attempt.addTX(redeemer);
       }
@@ -162,7 +163,7 @@ describe('Chain', function() {
     });
   });
 
-  it('should fail to mine a block with coins on a side chain', function(cb) {
+  it('should fail to mine a block with coins on an alternate chain', function(cb) {
     mineBlock(null, cb1, function(err, block) {
       assert.ifError(err);
       deleteCoins(block.txs);

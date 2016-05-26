@@ -5,6 +5,16 @@ var network = bcoin.protocol.network;
 var utils = bcoin.utils;
 var assert = require('assert');
 
+var KEY1 = 'xprv9s21ZrQH143K3Aj6xQBymM31Zb4BVc7wxqfUhMZrzewdDVCt'
+  + 'qUP9iWfcHgJofs25xbaUpCps9GDXj83NiWvQCAkWQhVj5J4CorfnpKX94AZ';
+
+KEY1 = { xprivkey: KEY1 };
+
+var KEY2 = 'xprv9s21ZrQH143K3mqiSThzPtWAabQ22Pjp3uSNnZ53A5bQ4udp'
+  + 'faKekc2m4AChLYH1XDzANhrSdxHYWUeTWjYJwFwWFyHkTMnMeAcW4JyRCZa';
+
+KEY2 = { xprivkey: KEY2 };
+
 var dummyInput = {
   prevout: {
     hash: constants.NULL_HASH,
@@ -13,7 +23,7 @@ var dummyInput = {
   coin: {
     version: 1,
     height: 0,
-    value: constants.MAX_MONEY.clone(),
+    value: constants.MAX_MONEY,
     script: new bcoin.script([]),
     coinbase: false,
     hash: constants.NULL_HASH,
@@ -22,6 +32,18 @@ var dummyInput = {
   script: new bcoin.script([]),
   witness: new bcoin.witness([]),
   sequence: 0xffffffff
+};
+
+assert.range = function range(value, lo, hi, message) {
+  if (!(value >= lo && value <= hi)) {
+    throw new assert.AssertionError({
+      message: message,
+      actual: value,
+      expected: lo + ', ' + hi,
+      operator: '>= && <=',
+      stackStartFunction: range
+    });
+  }
 };
 
 describe('Wallet', function() {
@@ -199,33 +221,33 @@ describe('Wallet', function() {
             assert.ifError(err);
             w.getBalance(function(err, balance) {
               assert.ifError(err);
-              assert.equal(balance.total.toString(10), '22500');
+              assert.equal(balance.total, 22500);
               wdb.addTX(t1, function(err) {
                 w.getBalance(function(err, balance) {
                   assert.ifError(err);
-                  assert.equal(balance.total.toString(10), '73000');
+                  assert.equal(balance.total, 73000);
                   wdb.addTX(t2, function(err) {
                     assert.ifError(err);
                     w.getBalance(function(err, balance) {
                       assert.ifError(err);
-                      assert.equal(balance.total.toString(10), '47000');
+                      assert.equal(balance.total, 47000);
                       wdb.addTX(t3, function(err) {
                         assert.ifError(err);
                         w.getBalance(function(err, balance) {
                           assert.ifError(err);
-                          assert.equal(balance.total.toString(10), '22000');
+                          assert.equal(balance.total, 22000);
                           wdb.addTX(f1, function(err) {
                             assert.ifError(err);
                             w.getBalance(function(err, balance) {
                               assert.ifError(err);
-                              assert.equal(balance.total.toString(10), '11000');
+                              assert.equal(balance.total, 11000);
                               w.getHistory(function(err, txs) {
                                 assert(txs.some(function(tx) {
                                   return tx.hash('hex') === f1.hash('hex');
                                 }));
 
                                 var w2 = bcoin.wallet.fromJSON(w.toJSON());
-                                // assert.equal(w2.getBalance().toString(10), '11000');
+                                // assert.equal(w2.getBalance(), 11000);
                                 // assert(w2.getHistory().some(function(tx) {
                                 //   return tx.hash('hex') === f1.hash('hex');
                                 // }));
@@ -253,7 +275,7 @@ describe('Wallet', function() {
       assert.ifError(err);
       dw.getBalance(function(err, balance) {
         assert.ifError(err);
-        assert.equal(balance.total.toString(10), '11000');
+        assert.equal(balance.total, 11000);
         cb();
       });
     });
@@ -280,23 +302,77 @@ describe('Wallet', function() {
 
           // Create new transaction
           var t2 = bcoin.mtx().addOutput(w2, 5460);
-          w1.fill(t2, function(err) {
+          w1.fill(t2, { rate: 10000, round: true }, function(err) {
             assert.ifError(err);
             w1.sign(t2);
             assert(t2.verify());
 
-            assert.equal(t2.getInputValue().toString(10), 16380);
+            assert.equal(t2.getInputValue(), 16380);
             // If change < dust and is added to outputs:
-            // assert.equal(t2.getOutputValue().toString(10), 6380);
-            // If change < dust and is added to fee:
-            assert.equal(t2.getOutputValue().toString(10), 5460);
+            // assert.equal(t2.getOutputValue(), 6380);
+            // If change > dust and is added to fee:
+            assert.equal(t2.getOutputValue(), 5460);
+            assert.equal(t2.getFee(), 10920);
 
             // Create new transaction
             var t3 = bcoin.mtx().addOutput(w2, 15000);
-            w1.fill(t3, function(err) {
+            w1.fill(t3, { rate: 10000, round: true }, function(err) {
               assert(err);
-              assert.equal(err.requiredFunds.toString(10), 25000);
+              assert.equal(err.requiredFunds, 25000);
               cb();
+            });
+          });
+        });
+      });
+    });
+  });
+
+  it('should fill tx with inputs with accurate fee', function(cb) {
+    wdb.create({ master: KEY1 }, function(err, w1) {
+      assert.ifError(err);
+      wdb.create({ master: KEY2 }, function(err, w2) {
+        assert.ifError(err);
+
+        // Coinbase
+        var t1 = bcoin.mtx()
+          .addOutput(w1, 5460)
+          .addOutput(w1, 5460)
+          .addOutput(w1, 5460)
+          .addOutput(w1, 5460);
+
+        t1.addInput(dummyInput);
+
+        // Fake TX should temporarly change output
+        wdb.addTX(t1, function(err) {
+          assert.ifError(err);
+
+          // Create new transaction
+          var t2 = bcoin.mtx().addOutput(w2, 5460);
+          w1.fill(t2, { rate: 10000 }, function(err) {
+            assert.ifError(err);
+            w1.sign(t2);
+            assert(t2.verify());
+
+            assert.equal(t2.getInputValue(), 16380);
+
+            // Should now have a change output:
+            assert.equal(t2.getOutputValue(), 11130);
+
+            assert.equal(t2.getFee(), 5250);
+
+            assert.equal(t2.getCost(), 2084);
+            assert.equal(t2.getBaseSize(), 521);
+            assert.equal(t2.getSize(), 521);
+            assert.equal(t2.getVirtualSize(), 521);
+
+            // Create new transaction
+            wdb.addTX(t2, function(err) {
+              assert.ifError(err);
+              var t3 = bcoin.mtx().addOutput(w2, 15000);
+              w1.fill(t3, { rate: 10000 }, function(err) {
+                assert(err);
+                cb();
+              });
             });
           });
         });
@@ -342,7 +418,7 @@ describe('Wallet', function() {
               tx.addOutput(to, 5460);
 
               var cost = tx.getOutputValue();
-              var total = cost.add(new bn(constants.tx.MIN_FEE));
+              var total = cost * constants.tx.MIN_FEE;
 
               w1.getCoins(function(err, coins1) {
                 assert.ifError(err);
@@ -350,19 +426,19 @@ describe('Wallet', function() {
                   assert.ifError(err);
 
                   // Add dummy output (for `left`) to calculate maximum TX size
-                  tx.addOutput(w1, new bn(0));
+                  tx.addOutput(w1, 0);
 
                   // Add our unspent inputs to sign
                   tx.addInput(coins1[0]);
                   tx.addInput(coins1[1]);
                   tx.addInput(coins2[0]);
 
-                  var left = tx.getInputValue().sub(total);
-                  if (left.cmpn(constants.tx.DUST_THRESHOLD) < 0) {
-                    tx.outputs[tx.outputs.length - 2].value.iadd(left);
-                    left = new bn(0);
+                  var left = tx.getInputValue() - total;
+                  if (left < constants.tx.DUST_THRESHOLD) {
+                    tx.outputs[tx.outputs.length - 2].value += left;
+                    left = 0;
                   }
-                  if (left.cmpn(0) === 0)
+                  if (left === 0)
                     tx.outputs.pop();
                   else
                     tx.outputs[tx.outputs.length - 1].value = left;
@@ -483,7 +559,7 @@ describe('Wallet', function() {
                   var send = bcoin.mtx();
                   send.addOutput({ address: receive.getAddress(), value: 5460 });
                   assert(!send.verify(null, true, flags));
-                  w1.fill(send, { m: w1.m, n: w1.n }, function(err) {
+                  w1.fill(send, { rate: 10000, round: true }, function(err) {
                     assert.ifError(err);
 
                     w1.sign(send);
@@ -527,7 +603,7 @@ describe('Wallet', function() {
                             send.inputs[0].script.code[2] = 0;
 
                           assert(!send.verify(null, true, flags));
-                          assert.equal(send.getFee().toNumber(), 10000);
+                          assert.equal(send.getFee(), 10000);
 
                           w3 = bcoin.wallet.fromJSON(w3.toJSON());
                           assert.equal(w3.receiveDepth, 2);

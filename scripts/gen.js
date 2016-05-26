@@ -26,10 +26,11 @@ function createGenesisBlock(options) {
   }
 
   if (!options.reward)
-    options.reward = new bn(50).mul(constants.COIN);
+    options.reward = 50 * constants.COIN;
 
   tx = {
     version: 1,
+    flag: 1,
     inputs: [{
       prevout: {
         hash: constants.NULL_HASH,

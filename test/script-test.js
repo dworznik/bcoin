@@ -10,19 +10,17 @@ var bn = require('bn.js');
 
 describe('Script', function() {
   it('should encode/decode script', function() {
-    var src = '20' +
-        '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f' +
-        '20' +
-        '101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f' +
-        'ac';
+    var src = '20'
+      + '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f'
+      + '20'
+      + '101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f'
+      + 'ac';
 
     var decoded = bcoin.script.decode(new Buffer(src, 'hex'));
     assert.equal(decoded.length, 3);
-    assert.equal(
-      decoded[0].toString('hex'),
+    assert.equal(decoded[0].toString('hex'),
       '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f');
-    assert.equal(
-      decoded[1].toString('hex'),
+    assert.equal(decoded[1].toString('hex'),
       '101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f');
     assert.equal(decoded[2], opcodes.OP_CHECKSIG);
 
@@ -31,25 +29,26 @@ describe('Script', function() {
   });
 
   it('should encode/decode numbers', function() {
-    var script = [ 0, 0x51, 0x52, 0x60 ];
+    var script = [0, 0x51, 0x52, 0x60];
     var encoded = bcoin.script.encode(script);
     var decoded = bcoin.script.decode(encoded);
     assert.deepEqual(decoded, script);
   });
 
-  it('should recognize a P2SH output', function () {
-    var hex = 'a91419a7d869032368fd1f1e26e5e73a4ad0e474960e87'
+  it('should recognize a P2SH output', function() {
+    var hex = 'a91419a7d869032368fd1f1e26e5e73a4ad0e474960e87';
     var decoded = bcoin.script.fromRaw(hex, 'hex');
-    assert(decoded.isScripthash())
+    assert(decoded.isScripthash());
   });
 
-  it('should recognize a Null Data output', function () {
-    var hex = '6a28590c080112220a1b353930632e6f7267282a5f5e294f7665726c6179404f7261636c65103b1a010c'
+  it('should recognize a Null Data output', function() {
+    var hex = '6a28590c080112220a1b353930632e6f7267282a5f'
+      + '5e294f7665726c6179404f7261636c65103b1a010c';
     var decoded = bcoin.script.fromRaw(hex, 'hex');
-    assert(decoded.isNulldata())
+    assert(decoded.isNulldata());
   });
 
-  it('should handle if statements correctly', function () {
+  it('should handle if statements correctly', function() {
     var inputScript = new Script([opcodes.OP_1, opcodes.OP_2]);
     var prevOutScript = new Script([
       opcodes.OP_2,
@@ -140,7 +139,7 @@ describe('Script', function() {
     return true;
   }
 
-  it('should handle bad size pushes correctly.', function () {
+  it('should handle bad size pushes correctly.', function() {
     var err;
     var stack = new bcoin.stack();
     var s = bcoin.script.fromString(
@@ -214,44 +213,52 @@ describe('Script', function() {
     assert(err.code === 'BAD_OPCODE');
   });
 
-  it('should handle CScriptNums correctly', function () {
-    var s = bcoin.script.fromSymbolic([
-      new Buffer([0xff, 0xff, 0xff, 0x7f]), 'OP_NEGATE', 'OP_DUP', 'OP_ADD'
+  it('should handle CScriptNums correctly', function() {
+    var s = new bcoin.script([
+      new Buffer([0xff, 0xff, 0xff, 0x7f]),
+      opcodes.OP_NEGATE,
+      opcodes.OP_DUP,
+      opcodes.OP_ADD
     ]);
-    var s2 = bcoin.script.fromSymbolic([
+    var s2 = new bcoin.script([
       new Buffer([0xfe, 0xff, 0xff, 0xff, 0x80]),
-      'OP_EQUAL'
+      opcodes.OP_EQUAL
     ]);
     var stack = new bcoin.stack();
     assert(s.execute(stack));
     assert(success(s2.execute(stack), stack));
   });
 
-  it('should handle CScriptNums correctly', function () {
-    var s = bcoin.script.fromSymbolic([
-      'OP_11', 'OP_10', 'OP_1', 'OP_ADD'
+  it('should handle CScriptNums correctly', function() {
+    var s = new bcoin.script([
+      opcodes.OP_11,
+      opcodes.OP_10,
+      opcodes.OP_1,
+      opcodes.OP_ADD
     ]);
-    var s2 = bcoin.script.fromSymbolic([
-      'OP_NUMNOTEQUAL',
-      'OP_NOT'
+    var s2 = new bcoin.script([
+      opcodes.OP_NUMNOTEQUAL,
+      opcodes.OP_NOT
     ]);
     var stack = new bcoin.stack();
     assert(s.execute(stack));
     assert(success(s2.execute(stack), stack));
   });
 
-  it('should handle OP_ROLL correctly', function () {
-    var s = bcoin.script.fromSymbolic([
-      new Buffer([0x16]), new Buffer([0x15]), new Buffer([0x14])
+  it('should handle OP_ROLL correctly', function() {
+    var s = new bcoin.script([
+      new Buffer([0x16]),
+      new Buffer([0x15]),
+      new Buffer([0x14])
     ]);
-    var s2 = bcoin.script.fromSymbolic([
-      'OP_0',
-      'OP_ROLL',
+    var s2 = new bcoin.script([
+      opcodes.OP_0,
+      opcodes.OP_ROLL,
       new Buffer([0x14]),
-      'OP_EQUALVERIFY',
-      'OP_DEPTH',
-      'OP_2',
-      'OP_EQUAL'
+      opcodes.OP_EQUALVERIFY,
+      opcodes.OP_DEPTH,
+      opcodes.OP_2,
+      opcodes.OP_EQUAL
     ]);
     var stack = new bcoin.stack();
     assert(s.execute(stack));
@@ -287,9 +294,10 @@ describe('Script', function() {
 
     [false, true].forEach(function(nocache) {
       var suffix = nocache ? ' without cache' : ' with cache';
-      it('should handle script test' + suffix + ': ' + comments, function () {
+      it('should handle script test' + suffix + ': ' + comments, function() {
         var coin = bcoin.tx({
           version: 1,
+          flag: 1,
           inputs: [{
             prevout: {
               hash: constants.NULL_HASH,
@@ -302,31 +310,35 @@ describe('Script', function() {
           }],
           outputs: [{
             script: output,
-            value: new bn(0)
+            value: 0
           }],
           locktime: 0
         });
         var tx = bcoin.tx({
           version: 1,
+          flag: 1,
           inputs: [{
             prevout: {
               hash: coin.hash('hex'),
               index: 0
             },
-            coin: bcoin.coin(coin, 0),
+            coin: bcoin.coin.fromTX(coin, 0),
             script: input,
             witness: witness,
             sequence: 0xffffffff
           }],
           outputs: [{
             script: new bcoin.script(),
-            value: new bn(0)
+            value: 0
           }],
           locktime: 0
         });
         if (nocache) {
           delete input.raw;
+          delete input.redeem;
+          delete input._address;
           delete output.raw;
+          delete output._address;
         }
         var err, res;
         try {
@@ -344,5 +356,158 @@ describe('Script', function() {
         assert(res);
       });
     });
+  });
+
+  it('should execute FindAndDelete correctly', function() {
+    var s, d, expect;
+
+    function del(s) {
+      s.mutable = true;
+      delete s.raw;
+      return s;
+    }
+
+    s = bcoin.script.fromString('OP_1 OP_2');
+    del(s);
+    d = new bcoin.script();
+    expect = s.clone();
+    assert.equal(s.findAndDelete(d.encode()), 0);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromString('OP_1 OP_2 OP_3');
+    del(s);
+    d = bcoin.script.fromString('OP_2');
+    del(d);
+    expect = bcoin.script.fromString('OP_1 OP_3');
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 1);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromString('OP_3 OP_1 OP_3 OP_3 OP_4 OP_3');
+    del(s);
+    d = bcoin.script.fromString('OP_3');
+    del(d);
+    expect = bcoin.script.fromString('OP_1 OP_4');
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 4);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromRaw('0302ff03', 'hex');
+    del(s);
+    d = bcoin.script.fromRaw('0302ff03', 'hex');
+    del(d);
+    expect = new bcoin.script();
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 1);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromRaw('0302ff030302ff03', 'hex');
+    del(s);
+    d = bcoin.script.fromRaw('0302ff03', 'hex');
+    del(d);
+    expect = new bcoin.script();
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 2);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromRaw('0302ff030302ff03', 'hex');
+    del(s);
+    d = bcoin.script.fromRaw('02', 'hex');
+    del(d);
+    expect = s.clone();
+    del(expect);
+    //assert.equal(s.findAndDelete(d.encode()), 0);
+    s.findAndDelete(d.encode());
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromRaw('0302ff030302ff03', 'hex');
+    del(s);
+    d = bcoin.script.fromRaw('ff', 'hex');
+    del(d);
+    expect = s.clone();
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 0);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromRaw('0302ff030302ff03', 'hex');
+    del(s);
+    d = bcoin.script.fromRaw('03', 'hex');
+    del(d);
+    expect = new bcoin.script([new Buffer([0xff, 0x03]), new Buffer([0xff, 0x03])]);
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 2);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromRaw('02feed5169', 'hex');
+    del(s);
+    d = bcoin.script.fromRaw('feed51', 'hex');
+    del(d);
+    expect = s.clone();
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 0);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromRaw('02feed5169', 'hex');
+    del(s);
+    d = bcoin.script.fromRaw('02feed51', 'hex');
+    del(d);
+    expect = bcoin.script.fromRaw('69', 'hex');
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 1);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromRaw('516902feed5169', 'hex');
+    del(s);
+    d = bcoin.script.fromRaw('feed51', 'hex');
+    del(d);
+    expect = s.clone();
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 0);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromRaw('516902feed5169', 'hex');
+    del(s);
+    d = bcoin.script.fromRaw('02feed51', 'hex');
+    del(d);
+    expect = bcoin.script.fromRaw('516969', 'hex');
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 1);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromString('OP_0 OP_0 OP_1 OP_1');
+    del(s);
+    d = bcoin.script.fromString('OP_0 OP_1');
+    del(d);
+    expect = bcoin.script.fromString('OP_0 OP_1');
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 1);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromString('OP_0 OP_0 OP_1 OP_0 OP_1 OP_1');
+    del(s);
+    d = bcoin.script.fromString('OP_0 OP_1');
+    del(d);
+    expect = bcoin.script.fromString('OP_0 OP_1');
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 2);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromRaw('0003feed', 'hex');
+    del(s);
+    d = bcoin.script.fromRaw('03feed', 'hex');
+    del(d);
+    expect = bcoin.script.fromRaw('00', 'hex');
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 1);
+    assert.deepEqual(s.encode(), expect.encode());
+
+    s = bcoin.script.fromRaw('0003feed', 'hex');
+    del(s);
+    d = bcoin.script.fromRaw('00', 'hex');
+    del(d);
+    expect = bcoin.script.fromRaw('03feed', 'hex');
+    del(expect);
+    assert.equal(s.findAndDelete(d.encode()), 1);
+    assert.deepEqual(s.encode(), expect.encode());
   });
 });
